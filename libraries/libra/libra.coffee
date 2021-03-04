@@ -670,7 +670,8 @@ scope ->
 
         #log vault.get('pageKeys')?[pageName]
 
-        [type, page, key] = vault.get('pageKeys')?[pageName]?.split('/') ? []
+        #[type, page, key] = vault.get('pageKeys')?[pageName]?.split('/') ? []
+        key = vault.get('pageKeys')?[pageName]
 
         if (await secret.digest key + curry) is pageKeyHashes[pageName]
             log 'automatic login succeeded'
@@ -687,11 +688,12 @@ scope ->
             input {id: 'lockInput', type: 'password'}
 
         changeHandler = ->
-            input = $('input').value
-            key = input.split('/')[2]
+            #input = $('input').value
+            #key = input.split('/')[2]
+            key = $('input').value
             if (await secret.digest key + curry) is pageKeyHashes[pageName]
                 pageKeys = (vault.get 'pageKeys') ? {}
-                pageKeys[pageName] = input
+                pageKeys[pageName] = key
                 vault.set 'pageKeys', pageKeys
                 css.remove 'lockScreen'
                 callback key

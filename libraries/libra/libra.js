@@ -780,9 +780,11 @@ margin 0`;
     ({div, span, input} = html.elements());
     curry = "2dd86aa78506478b72062af767d91221d9f7c4946604cc1f325ac224bf2825a8";
     lock = async function(pageName, callback) {
-      var key, page, ref, ref1, ref2, type;
+      var key, ref;
       //log vault.get('pageKeys')?[pageName]
-      [type, page, key] = (ref = (ref1 = vault.get('pageKeys')) != null ? (ref2 = ref1[pageName]) != null ? ref2.split('/') : void 0 : void 0) != null ? ref : [];
+
+      //[type, page, key] = vault.get('pageKeys')?[pageName]?.split('/') ? []
+      key = (ref = vault.get('pageKeys')) != null ? ref[pageName] : void 0;
       if (((await secret.digest(key + curry))) === pageKeyHashes[pageName]) {
         log('automatic login succeeded');
         callback(key);
@@ -802,11 +804,12 @@ margin 0`;
       }));
       changeHandler = async function() {
         var key, pageKeys, ref;
-        input = $('input').value;
-        key = input.split('/')[2];
+        //input = $('input').value
+        //key = input.split('/')[2]
+        key = $('input').value;
         if (((await secret.digest(key + curry))) === pageKeyHashes[pageName]) {
           pageKeys = (ref = vault.get('pageKeys')) != null ? ref : {};
-          pageKeys[pageName] = input;
+          pageKeys[pageName] = key;
           vault.set('pageKeys', pageKeys);
           css.remove('lockScreen');
           return callback(key);
