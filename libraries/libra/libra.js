@@ -143,6 +143,31 @@
 
   //#######################################
   scope(function() {
+    var buildObject, repeat;
+    // repeat 5 -> ....
+    repeat = function(n, f) {
+      var i, results;
+      i = 0;
+      results = [];
+      while (i++ < n) {
+        results.push(f(i));
+      }
+      return results;
+    };
+    buildObject = function(keys, func) {
+      var j, key, len, res;
+      res = {};
+      for (j = 0, len = keys.length; j < len; j++) {
+        key = keys[j];
+        res[key] = func(key);
+      }
+      return res;
+    };
+    return pack({repeat, buildObject});
+  });
+
+  //#######################################
+  scope(function() {
     var random, randomElement, randomFloat, randomInteger, shuffle;
     // shuffles array in place
     // uses fisher yates shuffle
@@ -205,8 +230,8 @@
 
   //#######################################
   scope(function() {
-    var $, attachHTML, createTag, html, loadHTML, parseNode, replaceHTML, replaceInnerHTML;
-    ({$} = libra);
+    var $, attachHTML, buildObject, createTag, html, loadHTML, parseNode, replaceHTML, replaceInnerHTML;
+    ({$, buildObject} = libra);
     html = function(html) {
       return window.onload = function() {
         return ($('body')).innerHTML = html;
@@ -261,8 +286,6 @@
       });
     };
     html.globalize = function(elements = html.elements.names) {
-      var buildObject;
-      ({buildObject} = libra);
       if (isString(elements)) {
         elements = elements.split(' ');
       }
@@ -309,31 +332,6 @@
     vault.clear = vaultClear;
     vault.empty = vaultClear;
     return pack({vault});
-  });
-
-  //#######################################
-  scope(function() {
-    var buildObject, repeat;
-    // repeat 5 -> ....
-    repeat = function(n, f) {
-      var i, results;
-      i = 0;
-      results = [];
-      while (i++ < n) {
-        results.push(f(i));
-      }
-      return results;
-    };
-    buildObject = function(keys, func) {
-      var j, key, len, res;
-      res = {};
-      for (j = 0, len = keys.length; j < len; j++) {
-        key = keys[j];
-        res[key] = func(key);
-      }
-      return res;
-    };
-    return pack({repeat, buildObject});
   });
 
   //#######################################
@@ -395,7 +393,8 @@
     css.lineSep = '\n';
     css.blockSep = '\n\n';
     css.remove = function(name) {
-      return css.stylesheets[name].remove();
+      css.stylesheets[name].remove();
+      return delete css.stylesheets[name];
     };
     css.get = function(name) {
       return css.stylesheets[name];
@@ -412,10 +411,14 @@
     css.load = function(lssCode) {
       var cssCode, name, node;
       [name, cssCode] = css.parse(lssCode);
-      node = document.createElement('style');
-      node.innerHTML = cssCode;
-      css.stylesheets[name] = node;
-      ($('head')).appendChild(node);
+      if (css.stylesheets[name]) {
+        css.stylesheets[name].innerHTML = cssCode;
+      } else {
+        node = document.createElement('style');
+        node.innerHTML = cssCode;
+        css.stylesheets[name] = node;
+        ($('head')).appendChild(node);
+      }
       return name;
     };
     css.preload = function(lssCode) { // maybe
@@ -446,7 +449,7 @@
       css.stylesheets.bindings.innerHTML = cssCode;
     };
     css.parse = function(lssCode) {
-      var animations, block, blocks, cssBlocks, cssCode, cssLines, getLines, j, len, name, states, styleSheet, stylesheetName;
+      var animations, block, blocks, cssBlocks, cssCode, cssLines, getLines, j, len, name, states, stylesheetName;
       ({getLines} = libra);
       cssLines = getLines(lssCode).map(function(line) {
         return line.trimEnd();
@@ -461,14 +464,14 @@
       for (j = 0, len = blocks.length; j < len; j++) {
         block = blocks[j];
         switch (block[0][0]) {
-          case 'NAME':
-            styleSheet = block[0][1];
+          case 'name':
+            stylesheetName = block[0][1];
             break;
-          case 'SELECT':
-          case 'COMMENT':
+          case 'select':
+          case 'comment':
             cssBlocks.push(block[1]);
             break;
-          case 'KEYFRAME':
+          case 'keyframe':
             name = block[0][1];
             if (animations[name] == null) {
               animations[name] = [];
@@ -550,21 +553,21 @@
         tail = line.slice(index).trim();
       }
       //log head
-      if (head === 'NAME') {
+      if (head === 'name') {
         return [[head, tail], ' '];
       }
-      if (head === 'COMMENT') {
+      if (head === 'comment') {
         block[0] = '/* ' + tail.trim();
         block.push('*/');
         return [[head], block.join(css.lineSep).replaceAll(/\n[ ]*/g, '\n')];
       }
       block = block.map(processLine).filter(isOnlyWhitespace);
-      if (head === 'SELECT') {
+      if (head === 'select') {
         block[0] = `${tail} {`;
         block.push("}");
         return [[head], block.join(css.lineSep)];
       }
-      if (head === 'KEYFRAME') {
+      if (head === 'keyframe') {
         ref = tail.split(' '), [animation] = ref, [percentage] = slice.call(ref, -1);
         block[0] = `${percentage} {`;
         block.push("}");
@@ -626,8 +629,13 @@
   scope(function() {
     var css;
     ({css} = libra);
-    return css.preprocessors.bg = function(arg) {
+    css.preprocessors.bg = function(arg) {
       return arg.replace('bg', 'background');
+    };
+    return css.preprocessors.fullscreen = function() {
+      return `height 100vh
+width 100vw
+margin 0`;
     };
   });
 
@@ -763,7 +771,110 @@
 
   //# lock ########################################################################
 
-  //#######################################
+  // TODO:
+  // add pageKeyGen
+  // import $, vault, css, secret, etc
+  scope(function() {
+    var curry, div, html, input, lock, lockPage, pageKeyHashes, span;
+    ({html} = libra);
+    ({div, span, input} = html.elements());
+    curry = "2dd86aa78506478b72062af767d91221d9f7c4946604cc1f325ac224bf2825a8";
+    lock = async function(pageName, callback) {
+      var key, page, ref, ref1, ref2, type;
+      //log vault.get('pageKeys')?[pageName]
+      [type, page, key] = (ref = (ref1 = vault.get('pageKeys')) != null ? (ref2 = ref1[pageName]) != null ? ref2.split('/') : void 0 : void 0) != null ? ref : [];
+      if (((await secret.digest(key + curry))) === pageKeyHashes[pageName]) {
+        log('automatic login succeeded');
+        callback(key);
+        return;
+      }
+      return lockPage(pageName, callback);
+    };
+    lockPage = function(pageName, callback) {
+      var changeHandler, lockHTML;
+      lockHTML = div({
+        id: 'lockDiv'
+      }, span({
+        id: 'lockSpan'
+      }, 'enter password'), '<br>', input({
+        id: 'lockInput',
+        type: 'password'
+      }));
+      changeHandler = async function() {
+        var key, pageKeys, ref;
+        input = $('input').value;
+        key = input.split('/')[2];
+        if (((await secret.digest(key + curry))) === pageKeyHashes[pageName]) {
+          pageKeys = (ref = vault.get('pageKeys')) != null ? ref : {};
+          pageKeys[pageName] = input;
+          vault.set('pageKeys', pageKeys);
+          css.remove('lockScreen');
+          return callback(key);
+        } else {
+          $('input').value = '';
+          return $('#lockSpan').innerText = 'try again';
+        }
+      };
+      replaceInnerHTML('body', lockHTML);
+      ($('input')).addEventListener('change', changeHandler);
+      return css(`
+name lockScreen
+
+select body
+    fullscreen
+    display grid
+    grid-template-rows 1fr max-content 1fr
+    bg black
+
+select #lockDiv
+    display block
+    grid-row 2
+    place-self center
+    text-align center
+    font-family sans-serif
+    font-size 18px
+    font-wight bold
+    color grey
+
+select #lockInput
+    margin-top 10px
+    border none
+    bg black
+    font-size 18px
+    color grey
+
+select #lockInput:focus
+    caret-color transparent
+    border-left 1px solid grey
+    border-right 1px solid grey
+    padding 0px 5px
+
+select *:focus
+    outline none
+`);
+    };
+    pageKeyHashes = {
+      bot: "95e60ac0a4e2a25363a0a9bc740495a28ff0f0b91218f9bc13356a9182a51e1e",
+      demo: "63b88c44aebb2f1c5d3b1799e95a46afe2ebf4617fae8557567d21f7891d268d",
+      rome: "54b9a608f51165c1ee8bf5477bbf7100e6a6697e02b681c21e9233a3bc8aca7d",
+      blink: "525c839422ea399f8137aacdb74e62a747a03589143ac031713c5fb5aec1f87f"
+    };
+    return pack({lock});
+  });
+
+  //###############################################################################
+  scope(function() {
+    var fetchJSON;
+    fetchJSON = async function(url) {
+      var json, response;
+      response = (await fetch(url));
+      json = (await response.json());
+      return json;
+    };
+    return pack({fetchJSON});
+  });
+
+  //###############################################################################
   scope(function() {
     var re, t, tokenize;
     re = /("|')((?:\\\1|(?:(?!\1).))*)\1|[\w\d-]*\(|\)|[$]?[\w\d-]+:?|[-+\/*%=,;|]+/g;

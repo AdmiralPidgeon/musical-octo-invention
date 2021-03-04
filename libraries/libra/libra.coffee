@@ -75,6 +75,25 @@ scope ->
 
 scope ->
 
+    # repeat 5 -> ....
+
+    repeat = (n, f) ->
+        i = 0
+        while i++ < n
+            f i
+
+    buildObject = (keys, func) ->
+        res = {}
+        for key in keys
+            res[key] = func key
+        return res
+
+    pack { repeat, buildObject }
+
+########################################
+
+scope ->
+
     # shuffles array in place
     # uses fisher yates shuffle
     # https://bost.ocks.org/mike/shuffle/
@@ -142,7 +161,7 @@ scope ->
 
 scope ->
 
-    { $ } = libra
+    { $, buildObject } = libra
 
     html = (html) ->
         window.onload = ->
@@ -189,8 +208,6 @@ scope ->
     html.elements = -> buildObject html.elements.names, (arg) -> createTag arg
 
     html.globalize = (elements = html.elements.names) ->
-
-        { buildObject } = libra
 
         if isString elements then elements = elements.split ' '
         global buildObject elements, (arg) -> createTag arg
@@ -240,25 +257,6 @@ scope ->
     vault.empty = vaultClear
 
     pack { vault }
-
-########################################
-
-scope ->
-
-    # repeat 5 -> ....
-
-    repeat = (n, f) ->
-        i = 0
-        while i++ < n
-            f i
-
-    buildObject = (keys, func) ->
-        res = {}
-        for key in keys
-            res[key] = func key
-        return res
-
-    pack { repeat, buildObject }
 
 ########################################
 
@@ -319,6 +317,7 @@ scope ->
 
     css.remove = (name) ->
         css.stylesheets[name].remove()
+        delete css.stylesheets[name]
 
     css.get = (name) ->
         css.stylesheets[name]
@@ -334,10 +333,13 @@ scope ->
 
     css.load = (lssCode) ->
         [name, cssCode] = css.parse lssCode
-        node = document.createElement 'style'
-        node.innerHTML = cssCode
-        css.stylesheets[name] = node
-        ($ 'head').appendChild node
+        if css.stylesheets[name]
+            css.stylesheets[name].innerHTML = cssCode
+        else
+            node = document.createElement 'style'
+            node.innerHTML = cssCode
+            css.stylesheets[name] = node
+            ($ 'head').appendChild node
         return name
 
     css.preload = (lssCode) -> # maybe
@@ -388,9 +390,9 @@ scope ->
 
         for block in blocks
             switch block[0][0]
-                when 'NAME' then styleSheet = block[0][1]
-                when 'SELECT', 'COMMENT' then cssBlocks.push block[1]
-                when 'KEYFRAME'
+                when 'name' then stylesheetName = block[0][1]
+                when 'select', 'comment' then cssBlocks.push block[1]
+                when 'keyframe'
                       name = block[0][1]
                       animations[name] ?= []
                       animations[name].push block[1]
@@ -452,22 +454,22 @@ scope ->
 
         #log head
 
-        if head is 'NAME'
+        if head is 'name'
             return [[head, tail], ' ']
 
-        if head is 'COMMENT'
+        if head is 'comment'
             block[0] = '/* ' + tail.trim()
             block.push '*/'
             return [[head], block.join(css.lineSep).replaceAll(/\n[ ]*/g, '\n')]
 
         block = block.map(processLine).filter(isOnlyWhitespace)
 
-        if head is 'SELECT'
+        if head is 'select'
             block[0] = "#{tail} {"
             block.push "}"
             return [[head], block.join css.lineSep]
 
-        if head is 'KEYFRAME'
+        if head is 'keyframe'
             [animation, ..., percentage] = tail.split(' ')
             block[0] = "#{percentage} {"
             block.push "}"
@@ -531,6 +533,12 @@ scope ->
     { css } = libra
 
     css.preprocessors.bg = (arg) -> arg.replace 'bg', 'background'
+
+    css.preprocessors.fullscreen = -> '''
+    height 100vh
+    width 100vw
+    margin 0
+    '''
 
 ########################################
 
@@ -646,7 +654,113 @@ scope ->
 
 ## lock ########################################################################
 
-########################################
+# TODO:
+# add pageKeyGen
+# import $, vault, css, secret, etc
+
+scope ->
+
+    { html } = libra
+
+    {div, span, input} = html.elements()
+
+    curry = "2dd86aa78506478b72062af767d91221d9f7c4946604cc1f325ac224bf2825a8"
+
+    lock = (pageName, callback) ->
+
+        #log vault.get('pageKeys')?[pageName]
+
+        [type, page, key] = vault.get('pageKeys')?[pageName]?.split('/') ? []
+
+        if (await secret.digest key + curry) is pageKeyHashes[pageName]
+            log 'automatic login succeeded'
+            callback key
+            return
+
+        lockPage pageName, callback
+
+    lockPage = (pageName, callback) ->
+
+        lockHTML = div {id: 'lockDiv'},
+            span {id: 'lockSpan'}, 'enter password'
+            '<br>'
+            input {id: 'lockInput', type: 'password'}
+
+        changeHandler = ->
+            input = $('input').value
+            key = input.split('/')[2]
+            if (await secret.digest key + curry) is pageKeyHashes[pageName]
+                pageKeys = (vault.get 'pageKeys') ? {}
+                pageKeys[pageName] = input
+                vault.set 'pageKeys', pageKeys
+                css.remove 'lockScreen'
+                callback key
+            else
+                $('input').value = ''
+                $('#lockSpan').innerText = 'try again'
+
+        replaceInnerHTML 'body', lockHTML
+        ($ 'input').addEventListener('change', changeHandler)
+
+        css '''
+
+        name lockScreen
+
+        select body
+            fullscreen
+            display grid
+            grid-template-rows 1fr max-content 1fr
+            bg black
+
+        select #lockDiv
+            display block
+            grid-row 2
+            place-self center
+            text-align center
+            font-family sans-serif
+            font-size 18px
+            font-wight bold
+            color grey
+
+        select #lockInput
+            margin-top 10px
+            border none
+            bg black
+            font-size 18px
+            color grey
+
+        select #lockInput:focus
+            caret-color transparent
+            border-left 1px solid grey
+            border-right 1px solid grey
+            padding 0px 5px
+
+        select *:focus
+            outline none
+
+        '''
+
+    pageKeyHashes =
+
+        bot:    "95e60ac0a4e2a25363a0a9bc740495a28ff0f0b91218f9bc13356a9182a51e1e"
+        demo:   "63b88c44aebb2f1c5d3b1799e95a46afe2ebf4617fae8557567d21f7891d268d"
+        rome:   "54b9a608f51165c1ee8bf5477bbf7100e6a6697e02b681c21e9233a3bc8aca7d"
+        blink:  "525c839422ea399f8137aacdb74e62a747a03589143ac031713c5fb5aec1f87f"
+
+    pack { lock }
+
+################################################################################
+
+scope ->
+
+    fetchJSON = (url) ->
+        response = await fetch url
+        json = await response.json()
+        return json
+
+    pack { fetchJSON }
+
+################################################################################
 
 scope ->
 
