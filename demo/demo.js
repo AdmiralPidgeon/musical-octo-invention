@@ -51,12 +51,12 @@
     replaceInnerHTML('body', lockScreen());
     ($('input')).addEventListener('change', changeHandler);
     return css(`
-SELECT body
+select body
     fullscreen
     display grid
     #bg #130d0d
 
-SELECT input
+select input
     border none
     display block
     padding 20px
@@ -66,10 +66,10 @@ SELECT input
     color #f22
     font-size 18px
 
-SELECT *:focus
+select *:focus
     outline none
 
-SELECT .snake
+select .snake
     animation shake-horizontal 250ms
 `);
   };
@@ -116,14 +116,14 @@ SELECT .snake
   };
 
   css(`
-SELECT :root
+select :root
     $boxA #a84848
     $boxB #665132
     $boxC #826c4e
     $lineA #d0d0d0
     $textA #d0d0d0
 
-SELECT body
+select body
     margin 0px
     height 100vh
     width 100vw
@@ -135,7 +135,7 @@ SELECT body
     #background-position: top right;
     #background-size: cover;
 
-SELECT .box
+select .box
     place-self center
     height 500px
     width 500px
@@ -146,30 +146,30 @@ SELECT .box
     overflow hidden
     border 2px solid $lineA
 
-SELECT .entry
+select .entry
     display grid
     grid-template-columns 1fr 1fr
     border-top 2px solid $lineA
 
-SELECT .category, .key, .value
+select .category, .key, .value
     display flex
     align-items center
     place-content center
     font small-caps bold 20px sans-serif
     color $textA
 
-SELECT a
+select a
     color $textA
     text-decoration none
 
-SELECT .category
+select .category
     bg $boxA
 
-SELECT .key
+select .key
     bg $boxB
     border-right 2px solid $lineA
 
-SELECT .value
+select .value
     bg $boxC
 `);
 

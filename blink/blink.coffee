@@ -39,12 +39,12 @@ runLockScreen = ->
 
     css '''
 
-    SELECT body
+    select body
         fullscreen
         display grid
         bg #130d0d
 
-    SELECT .lockScreen
+    select .lockScreen
         border none
         display block
         padding 20px
@@ -54,10 +54,10 @@ runLockScreen = ->
         color black
         font 18px bold sans-serif
 
-    SELECT *:focus
+    select *:focus
         outline none
 
-    SELECT .snake
+    select .snake
         animation shake-horizontal 250ms
 
     '''
@@ -91,11 +91,14 @@ light = null
 audio = off
 randomizer = off
 mode = 'morse'
+audioCtx = null
+osc = null
 
-audioCtx = new AudioContext()
-window.osc = audioCtx.createOscillator()
-osc.frequency.value = 440
-osc.start()
+startAudio = ->
+    audioCtx = new AudioContext()
+    osc = audioCtx.createOscillator()
+    osc.frequency.value = 440
+    osc.start()
 
 window.knockLetters = {}
 
@@ -162,7 +165,7 @@ scope ->
 
     morseChars = res
 
-    global { morseChars }
+    global { morseChars, startAudio }
 
 ################################################################################
 
@@ -258,11 +261,12 @@ blinkputHandler = ->
     audio = off if text is 'soundOff'
     randomizer = on if text is 'randomOn'
     randomizer = off if text is 'randomOff'
+    startAudio() if text is 'startAudio'
 
     mode = 'knock' if text is 'knockMode'
     mode = 'morse' if text is 'morseMode'
 
-    if text not in ['soundOn', 'soundOff', 'randomOn', 'randomOff', 'knockMode', 'morseMode']
+    if text not in ['soundOn', 'soundOff', 'randomOn', 'randomOff', 'knockMode', 'morseMode', 'startAudio']
         knock text if mode is 'knock'
         morse text if mode is 'morse'
 
@@ -271,6 +275,7 @@ blinkputHandler = ->
 runBlink = ->
 
     log ['soundOn', 'soundOff', 'randomOn', 'randomOff', 'knockMode', 'morseMode']
+    log 'startAudio()'
 
     replaceInnerHTML 'body',
         div {id: 'box'},
@@ -295,12 +300,12 @@ runBlink = ->
 
     css '''
 
-    SELECT body
+    select body
         fullscreen
         display grid
         bg #130d0d
 
-    SELECT #blink
+    select #blink
         place-self center
         height 150px
         width 150px
@@ -308,14 +313,14 @@ runBlink = ->
         border-radius 100%
         margin-bottom 60px
 
-    SELECT #blink.on
+    select #blink.on
         bg $light
 
-    SELECT #box
+    select #box
         place-self center
         display grid
 
-    SELECT #blinkput
+    select #blinkput
         border none
         bg $input
         color black
@@ -325,7 +330,7 @@ runBlink = ->
         padding 0px 10px
         font bold 14px sans-serif
 
-    SELECT #line
+    select #line
         height 30px
         width 400px
         display grid
@@ -333,20 +338,20 @@ runBlink = ->
         grid-template-columns 1fr
         #border 2px solid $border
 
-    SELECT #rndBtn, #sndBtn
+    select #rndBtn, #sndBtn
         color black
         display none
         place-content center
         align-items center
         font bold 14px sans-serif
 
-    SELECT .btnOn
+    select .btnOn
         bg $btnOn
 
-    SELECT .btnOff
+    select .btnOff
         bg $btnOff
 
-    SELECT *:focus
+    select *:focus
         outline none
 
     '''
